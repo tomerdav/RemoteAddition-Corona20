@@ -22,7 +22,8 @@ int tun_alloc(char* device_name) {
         return INVALID_FD;
     }
 
-    if_request.ifr_flags = IFF_TUN;
+    // Flags: interface type is tun, no packet information (provide only packet data)
+    if_request.ifr_flags = IFF_TUN | IFF_NO_PI;
     strncpy(if_request.ifr_name, device_name, IFNAMSIZ);
     
     err = ioctl(fd, TUNSETIFF, (void *) &if_request);
