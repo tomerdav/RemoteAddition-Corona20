@@ -8,6 +8,30 @@
 
 #define ICMP_HEADER_SIZE 8
 
+uint16_t get_icmp_checksum(char* buffer, int size)
+{
+    uint16_t* header = (uint16_t*)buffer;
+	uint16_t ret = 0;
+	uint32_t sum = 0;
+	uint16_t odd_byte;
+	
+	while (size > 1) {
+		sum += *header++;
+		size -= 2;
+	}
+	
+	if (size == 1) {
+		*(uint8_t*)(&odd_byte) = *(uint8_t*)header;
+		sum += odd_byte;
+	}
+	
+	sum =  (sum >> 16) + (sum & 0xffff);
+	sum += (sum >> 16);
+	ret =  ~sum;
+	
+	return ret; 
+}
+
 int build_icmp_cover(char* original_buffer, char** new_buffer, int original_size, bool is_reply) {
     int new_size = get_covered_icmp_size(original_size);
     *new_buffer = malloc(new_size);
@@ -23,9 +47,10 @@ int build_icmp_cover(char* original_buffer, char** new_buffer, int original_size
     header->checksum = (uint16_t)0;
     header->identifier = (uint16_t)0;
     header->sequence_number = (uint16_t)0;
-    
+
     // add the data to the covered packet
     memcpy((*new_buffer) + ICMP_HEADER_SIZE, original_buffer, original_size);  
+    header->checksum = get_icmp_checksum(*new_buffer, new_size);
 
     return new_size;   
 }
