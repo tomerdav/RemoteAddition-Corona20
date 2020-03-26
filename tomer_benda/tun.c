@@ -1,5 +1,6 @@
 #include "tun.h"
 
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -7,6 +8,7 @@
 #include <sys/ioctl.h>
 #include <linux/if.h>
 #include <linux/if_tun.h>
+#include <errno.h>
 
 int tun_alloc(char *dev) {
     struct ifreq ifr;
@@ -14,6 +16,7 @@ int tun_alloc(char *dev) {
 
     if((fd = open("/dev/net/tun", O_RDWR)) < 0){
         //return tun_alloc_old(dev);
+        printf("error: %d\n", errno);
         return fd;
     }
 
@@ -26,13 +29,10 @@ int tun_alloc(char *dev) {
 
     if((err = ioctl(fd, TUNSETIFF, (void *) &ifr)) < 0) {
         close(fd);
+        printf("error: %d\n", errno);
         return err;
     }
 
     strcpy(dev, ifr.ifr_name);
     return fd;
-}
-
-void tun_close(int fd) {
-    close(fd);
 }

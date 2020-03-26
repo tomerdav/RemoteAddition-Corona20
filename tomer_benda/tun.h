@@ -8,9 +8,4 @@
  */
 int tun_alloc(char *dev);
 
-/**
- * Close a given tunnel by closing it's file descriptor
- */
-void tun_close(int fd);
-
 #endif // __TUN_H__
