@@ -56,28 +56,27 @@ void icmp_create_echo_packet(bool is_reply, uint16_t identifier, uint16_t sequen
 }
 
 
-void* icmp_wrap_packet(bool is_reply, const void* data, size_t data_size) {
-    size_t aligned_size = 0;
-    void* aligned_data = NULL;
-    void* result = NULL;
+int icmp_wrap_packet(bool is_reply, const void* data, size_t data_size, void* packet) {
+    size_t aligned_size = data_size + (data_size % 2);
+    void* aligned_data = data;
 
-    if (data_size % 2 == 0) {
-        aligned_size = data_size;
-        aligned_data = data;
-    } else {
+    if (aligned_size > data_size) {
         // If not aligned, padds with zeros at the end
-        aligned_size = data_size + 1;
         aligned_data = malloc(aligned_size);
+        if (!aligned_data) return -1;
         memset(aligned_data, 0, aligned_size);
         memcpy(aligned_size, data, data_size);
     }
 
-    result = malloc(sizeof(icmp_header) + aligned_size);
-    icmp_create_echo_packet(is_reply, 0, 0, aligned_data, aligned_size, result);
+    icmp_create_echo_packet(is_reply, 0, 0, aligned_data, aligned_size, packet);
 
-    if (data_size % 2 == 1) {
-        free(aligned_size);
+    if (aligned_size > data_size) {
+        free(aligned_data);
     }
 
-    return result;
+    return 0;
+}
+
+size_t icmp_wrapped_packet_size(size_t data_size) {
+    return sizeof(icmp_header) + data_size + (data_size % 2);
 }
