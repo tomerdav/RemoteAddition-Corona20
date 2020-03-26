@@ -1,6 +1,11 @@
 #ifndef _ICMP_COVER_DEFINE_
 #define _ICMP_COVER_DEFINE_
 
+#include <stdint.h>
+#include <stdbool.h>
+
+
+
 typedef struct {
     uint8_t type;
     uint8_t code;

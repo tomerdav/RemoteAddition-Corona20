@@ -1,5 +1,11 @@
 #include "icmp_cover.h"
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <stdlib.h>
+#include <string.h>
+
 #define ICMP_HEADER_SIZE 8
 
 int build_icmp_cover(char* original_buffer, char** new_buffer, int original_size, bool is_reply) {
@@ -11,7 +17,7 @@ int build_icmp_cover(char* original_buffer, char** new_buffer, int original_size
     }
 
     // build the header of the covered packet
-    ICMP_HEADER* header = *new_buffer;
+    ICMP_HEADER* header = (ICMP_HEADER*)*new_buffer;
     header->type = is_reply ? (uint8_t)0 : (uint8_t)8;
     header->code = (uint8_t)0;
     header->checksum = (uint16_t)0;
@@ -19,7 +25,7 @@ int build_icmp_cover(char* original_buffer, char** new_buffer, int original_size
     header->sequence_number = (uint16_t)0;
     
     // add the data to the covered packet
-    memcpy((*new_buffer) + ICMP_HEADER_SIZE, buffer, original_size);  
+    memcpy((*new_buffer) + ICMP_HEADER_SIZE, original_buffer, original_size);  
 
     return new_size;   
 }
@@ -34,18 +40,13 @@ int send_icmp_covered_packet(char* buffer, int size, char* dest) {
         return -1;
     }
 
-    if (sendto(fd, &req, req_size, 0, res->ai_addr, res->ai_addrlen) ==-1) {
-        return -1;
-    }
-
-
     struct sockaddr_in server = {0};
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = inet_addr(dest);
 
     struct iovec iov[1] = {0};
-    iov[0].iov_base = &req;
-    iov[0].iov_len = req_size;
+    iov[0].iov_base = buffer;
+    iov[0].iov_len = size;
     
     struct msghdr message;
     message.msg_name = &server;

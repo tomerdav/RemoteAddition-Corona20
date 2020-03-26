@@ -1,15 +1,16 @@
 #include <stdio.h>
-#include <socket.h>
 #include <errno.h>
 #include <unistd.h>
 #include <netdb.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <stdlib.h>
 #include "tunnel.h"
+#include "icmp_cover.h"
 
 #define TUN_NAME "tun33"
 #define BUFF_SIZE 1500
-#define SERVER_ADDR "192.168.1.20"
+#define SERVER_ADDR "192.168.1.1"
 
 int main() {
     fd_set read_fds = {0};
@@ -50,10 +51,12 @@ int main() {
         }
 
         err = send_icmp_covered_packet(new_buffer, new_size, SERVER_ADDR);
-
+        printf("packet sent\n");
         if (err == -1) {
             break;
-        }     
+        }
+
+        free(new_buffer);     
     }
 
  
