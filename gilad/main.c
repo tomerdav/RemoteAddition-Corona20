@@ -1,12 +1,13 @@
 #include <stdio.h>
 #include <sys/select.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 #include "tun_interface.h"
 #include "icmp_wrap.h"
 
 #define TUN_IF_NAME ("tun0")
-#define TIMOUT_SEC (5)
+#define TIMOUT_SEC (500)
 #define MAX_DATA_SIZE (1500)
 
 
@@ -23,10 +24,11 @@ int main() {
     // Creates the device
     fd = tun_alloc(TUN_IF_NAME);
     if (fd < 0) {
+        printf("Failed to create the interface %s\n", TUN_IF_NAME);
         return 1;
     }
     printf("Created the interface %s\n", TUN_IF_NAME);
-    
+
     while (true) {
         // Waits for data from the interface
         FD_ZERO(&readfs);
@@ -34,6 +36,9 @@ int main() {
         timeout.tv_sec = TIMOUT_SEC;
         timeout.tv_usec = 0;
         ret = select(fd + 1, &readfs, NULL, NULL, &timeout);
+        if (ret == 0) {
+            printf("Reached timout (%d seconds)\n", TIMOUT_SEC);
+        }
         if (ret <= 0) break;
 
         // Reads from the interface
@@ -46,7 +51,6 @@ int main() {
         if (!wrapped_packet) break;
         icmp_wrap_packet(false, (void*) data, data_size, wrapped_packet);
         // TODO: Send the packet
-        if (ret < new_data_size) break;
     }
     
     return 0;

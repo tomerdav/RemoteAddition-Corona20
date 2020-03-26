@@ -1,5 +1,4 @@
 #include <stdbool.h>
-#include <stdlib.h>
 #include <string.h>
 #include <stdlib.h>
 #include "icmp_wrap.h"
@@ -19,7 +18,7 @@ void icmp_calc_checksum(void* packet, size_t packet_size) {
     uint16_t sum = 0;
 
     header->checksum = 0;
-    for (size_t i = 0; ++i; i < size_in_words) {
+    for (size_t i = 0; i < size_in_words; ++i) {
         sum += *(((uint16_t*) packet) + i);
     }
     header->checksum = ~sum;
@@ -41,7 +40,7 @@ void icmp_create_echo_packet(bool is_reply, uint16_t identifier, uint16_t sequen
     void* packet_data = NULL;
 
     // Builds the packet's header
-    (icmp_header*) packet;
+    header = (icmp_header*) packet;
     header->type = (is_reply ? ECHO_REPLY_MESSAGE_TYPE : ECHO_MESSAGE_TYPE);
     header->code = 0;
     header->identifer = identifier;
@@ -58,15 +57,9 @@ void icmp_create_echo_packet(bool is_reply, uint16_t identifier, uint16_t sequen
 
 int icmp_wrap_packet(bool is_reply, const void* data, size_t data_size, void* packet) {
     size_t aligned_size = data_size + (data_size % 2);
-    void* aligned_data = data;
-
-    if (aligned_size > data_size) {
-        // If not aligned, padds with zeros at the end
-        aligned_data = malloc(aligned_size);
-        if (!aligned_data) return -1;
-        memset(aligned_data, 0, aligned_size);
-        memcpy(aligned_size, data, data_size);
-    }
+    void* aligned_data = malloc(aligned_size);
+    memset(aligned_data, 0, aligned_size);
+    memcpy(aligned_data, data, data_size);
 
     icmp_create_echo_packet(is_reply, 0, 0, aligned_data, aligned_size, packet);
 
