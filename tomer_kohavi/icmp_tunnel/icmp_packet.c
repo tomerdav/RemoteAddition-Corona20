@@ -1,3 +1,5 @@
+#include "icmp_packet.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -13,96 +15,51 @@
 #include <sys/select.h>
 #include <sys/time.h>
 
-unsigned short cksum(unsigned short *addr, int len);
+const size_t ICMP_DATA_OFFSET = 28;
 
-int main(int argc, char *argv[])
-{
-    int sock;
-    char send_buf[400], recv_buf[400], src_name[256], src_ip[15], dst_ip[15];
-    struct ip *ip = (struct ip *)send_buf;
-    struct icmp *icmp = (struct icmp *)(ip + 1);
-    struct hostent *src_hp, *dst_hp;
-    struct sockaddr_in src, dst;
-    struct timeval t;
-    int on;
-    int num = 10;
-    int failed_count = 0;
-    int bytes_sent, bytes_recv;
-    int dst_addr_len;
-    int result;
-    fd_set socks;
+void set_src_ip(struct ip *ip) {
+    struct hostent *src_hp;
+    char src_name[256];
 
-    /* Initialize variables */
-    on = 1;
-    memset(send_buf, 0, sizeof(send_buf));
-
-    /* Check for valid args */
-    if(argc < 2)
-    {
-        printf("\nUsage: %s <dst_server>\n", argv[0]);
-        printf("- dst_server is the target\n");
-        exit(EXIT_FAILURE);
-    }
-
-    /* Check for root access */
-    if (getuid() != 0)
-    {
-        fprintf(stderr, "%s: This program requires root privileges!\n", argv[0]);
-        exit(EXIT_FAILURE);
-    }
-
-    /* Get source IP address */
-    if(gethostname(src_name, sizeof(src_name)) < 0)
-    {
+    if (gethostname(src_name, sizeof(src_name)) < 0) {
         perror("gethostname() error");
         exit(EXIT_FAILURE);
-    }
-    else
-    {
-        if((src_hp = gethostbyname(src_name)) == NULL)
-        {
+    } else {
+        if (NULL == (src_hp = gethostbyname(src_name))) {
             fprintf(stderr, "%s: Can't resolve, unknown source.\n", src_name);
             exit(EXIT_FAILURE);
-        }
-        else
+        } else {
             ip->ip_src = (*(struct in_addr *)src_hp->h_addr);
-    }
-
-    /* Get destination IP address */
-    if((dst_hp = gethostbyname(argv[1])) == NULL)
-    {
-        if((ip->ip_dst.s_addr = inet_addr(argv[1])) == -1)
-        {
-            fprintf(stderr, "%s: Can't resolve, unknown destination.\n", argv[1]);
-            exit(EXIT_FAILURE);
         }
     }
-    else
-    {
-        ip->ip_dst = (*(struct in_addr *)dst_hp->h_addr);
-        dst.sin_addr = (*(struct in_addr *)dst_hp->h_addr);
+}
+
+void set_dst_ip(struct ip *ip, const char *dst_name) {
+    if (-1 == (ip->ip_dst.s_addr = inet_addr(dst_name))) {
+        fprintf(stderr, "%s: Can't resolve, unknown destination.\n", dst_name);
+        exit(EXIT_FAILURE);
     }
+}
 
-    sprintf(src_ip, "%s", inet_ntoa(ip->ip_src));
-    sprintf(dst_ip, "%s", inet_ntoa(ip->ip_dst));
-    printf("Source IP: '%s' -- Destination IP: '%s'\n", src_ip, dst_ip);
-
+int create_socket() {
+    int sock_fd;
+    int on = 1;
     /* Create RAW socket */
-    if((sock = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0)
-    {
-        perror("socket() error");
-
+    if ((sock_fd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0) {
+        perror("sockdet() error");
         /* If something wrong, just exit */
         exit(EXIT_FAILURE);
     }
 
-    /* Socket options, tell the kernel we provide the IP structure */
-    if(setsockopt(sock, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on)) < 0)
-    {
+    /* socket options, tell the kernel we provide the IP structure */
+    if (setsockopt(sock_fd, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on)) < 0) {
         perror("setsockopt() for IP_HDRINCL error");
         exit(EXIT_FAILURE);
     }
+    return sock_fd;
+}
 
+void create_icmp_packet(struct icmp *icmp, struct ip *ip, char *send_buf) {
     /* IP structure, check the ip.h */
     ip->ip_v = 4;
     ip->ip_hl = 5;
@@ -110,7 +67,7 @@ int main(int argc, char *argv[])
     ip->ip_len = htons(sizeof(send_buf));
     ip->ip_id = htons(321);
     ip->ip_off = htons(0);
-    ip->ip_ttl = 255;
+    ip->ip_ttl = 64;
     ip->ip_p = IPPROTO_ICMP;
     ip->ip_sum = 0;
 
@@ -119,101 +76,43 @@ int main(int argc, char *argv[])
     icmp->icmp_code = 0;
     icmp->icmp_id = 123;
     icmp->icmp_seq = 0;
+}
 
-    /* Set up destination address family */
+int send_packet(int sock_fd, struct icmp *icmp, struct ip *ip, char *send_buf, const char *data, int data_len) {
+    int bytes_to_send = data_len + ICMP_DATA_OFFSET;
+    struct sockaddr_in dst;
     dst.sin_family = AF_INET;
 
-    /* Loop based on the packet number */
-    for(int i = 1; i <= num; i++)
-    {
-        /* Header checksums */
-        icmp->icmp_cksum = 0;
-        ip->ip_sum = cksum((unsigned short *)send_buf, ip->ip_hl);
-        icmp->icmp_cksum = cksum((unsigned short *)icmp, sizeof(send_buf) - sizeof(struct icmp));
+    /* Copy data to icmp data field */
+    memcpy(send_buf + ICMP_DATA_OFFSET, data, data_len);
+    ip->ip_len = htons(bytes_to_send);
 
-        /* Get destination address length */
-        dst_addr_len = sizeof(dst);
+    /* Header checksums */
+    icmp->icmp_cksum = 0;
+    ip->ip_sum = cksum((unsigned short *)send_buf, ip->ip_hl);
+    icmp->icmp_cksum = cksum((unsigned short *)icmp, sizeof(icmp) + data_len);
+    //icmp->icmp_cksum = cksum((unsigned short *)icmp, sizeof(send_buf) - sizeof(struct icmp));
 
-        /* Set listening timeout */
-        t.tv_sec = 5;
-        t.tv_usec = 0;
-
-        /* Set socket listening descriptors */
-        FD_ZERO(&socks);
-        FD_SET(sock, &socks);
-
-        /* Send packet */
-        if((bytes_sent = sendto(sock, send_buf, sizeof(send_buf), 0, (struct sockaddr *)&dst, dst_addr_len)) < 0)
-        {
-            perror("sendto() error");
-            failed_count++;
-            printf("Failed to send packet.\n");
-            fflush(stdout);
-        }
-        else
-        {
-            printf("Sent %d byte packet... ", bytes_sent);
-
-            fflush(stdout);
-
-            /* Listen for the response or timeout */
-            if((result = select(sock + 1, &socks, NULL, NULL, &t)) < 0)
-            {
-                perror("select() error");
-                failed_count++;
-                printf("Error receiving packet!\n");
-            }
-            else if (result > 0)
-            {
-                printf("Waiting for packet... ");
-                fflush(stdout);
-
-                if((bytes_recv = recvfrom(sock, recv_buf, sizeof(ip) + sizeof(icmp) + sizeof(recv_buf), 0, (struct sockaddr *)&dst, (socklen_t *)&dst_addr_len)) < 0)
-                {
-                    perror("recvfrom() error");
-                    failed_count++;
-                    fflush(stdout);
-                }
-                else
-                    printf("Received %d byte packet!\n", bytes_recv);
-            }
-            else
-            {
-                printf("Failed to receive packet!\n");
-                failed_count++;
-            }
-
-            fflush(stdout);
-
-            icmp->icmp_seq++;
-        }
+    /* Send packet */
+    if (bytes_to_send != sendto(sock_fd, send_buf, bytes_to_send, 0, (struct sockaddr *)&dst, sizeof(dst))) {
+        perror("send() error");
     }
-
-    /* Display success rate */
-    printf("Ping test completed with %d%% success rate.\n", (((num - failed_count) / num) * 100));
-
-    /* close socket */
-    close(sock);
-
-    return 0;
 }
 
 /* One's Complement checksum algorithm */
-unsigned short cksum(unsigned short *addr, int len)
+unsigned short cksum(unsigned short *addr, size_t len)
 {
     int nleft = len;
     int sum = 0;
     unsigned short *w = addr;
     unsigned short answer = 0;
 
-    while (nleft > 1)
-    {
-      sum += *w++;
+    while (nleft > 1) {
+      sum += *(w++);
       nleft -= 2;
     }
 
-    if (nleft == 1)
-    {
+    if (nleft == 1) {
       *(unsigned char *)(&answer) = *(unsigned char *)w;
       sum += answer;
     }
