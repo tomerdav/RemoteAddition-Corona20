@@ -17,6 +17,7 @@ void icmp_calc_checksum(void* packet, size_t packet_size) {
     size_t size_in_words = packet_size / sizeof(uint16_t);
     uint16_t sum = 0;
 
+    // TODO: Check this calculation, it might be wrong
     header->checksum = 0;
     for (size_t i = 0; i < size_in_words; ++i) {
         sum += *(((uint16_t*) packet) + i);
