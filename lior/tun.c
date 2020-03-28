@@ -12,14 +12,14 @@
 #include <fcntl.h>
 #include "tun.h"
 
-int tun_alloc() {
+int tun_alloc(char *dev) {
     struct ifreq ifr;
-    int tun_fd;
+    int tun_fd, err;
     char *path = "/dev/net/tun";
 
     tun_fd = open(path, O_RDWR);
 
-    if(tun_fd == -1) {
+    if(tun_fd < 0) {
         printf("Error open file\n");
         return tun_fd;
     }
@@ -28,11 +28,17 @@ int tun_alloc() {
 
     ifr.ifr_flags = IFF_TUN | IFF_NO_PI;
 
-    if (ioctl(tun_fd, TUNSETIFF, &ifr) < 0) {
+    if(dev != NULL && *dev != '\0') {
+        strncpy(ifr.ifr_name, dev, IFNAMSIZ);
+    }
+
+    if ((err = ioctl(tun_fd, TUNSETIFF, &ifr)) < 0) {
         close(tun_fd);
         printf("Error creating the device\n");
-        return -1;
+        return err;
     }
+
+    strcpy(dev, ifr.ifr_name);
 
     return tun_fd;
 }
