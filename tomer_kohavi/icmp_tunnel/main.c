@@ -5,23 +5,28 @@
 
 int main() {
     int tun_fd;
-    void* buffer;
+    char buffer[BUF_SIZE];
+    int sock_fd;
+    struct sockaddr_in remote;
 
     tun_fd = tun_alloc(DEV_NAME);
     
-    if (tun_fd == -1) {
+    if (-1 == tun_fd) {
+        perror("tun_alloc()");
         return -1;
     }
 
-    buffer = malloc(BUF_SIZE);
+    sock_fd = socket(AF_INET, SOCK_STREAM, 0);
 
-    if (!buffer) {
-        tun_close(tun_fd);
+    if (-1 == sock_fd) {
+        perror("socket()");
         return -1;
     }
+
+    
 
     while(1) {
-        if (-1 == tun_read(tun_fd, buffer)) {
+        if (-1 == tun_read(tun_fd, (void *)buffer)) {
             tun_close(tun_fd);
             return -1;
         }
