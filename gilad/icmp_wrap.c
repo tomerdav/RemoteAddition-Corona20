@@ -15,13 +15,17 @@
 void icmp_calc_checksum(void* packet, size_t packet_size) {
     icmp_header* header = (icmp_header*) packet;
     size_t size_in_words = packet_size / sizeof(uint16_t);
-    uint16_t sum = 0;
+    uint32_t sum = 0;
 
-    // TODO: Check this calculation, it might be wrong
+    // Sums up
     header->checksum = 0;
     for (size_t i = 0; i < size_in_words; ++i) {
         sum += *(((uint16_t*) packet) + i);
     }
+
+    // Adds the carry
+    sum += (sum >> 16);
+
     header->checksum = ~sum;
 }
 
