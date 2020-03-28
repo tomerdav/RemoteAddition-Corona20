@@ -23,6 +23,11 @@ int main() {
         return -1;
     }
 
+    memset(&remote, 0, sizeof(remote));
+    remote.sin_family = AF_INET;
+    remote.sin_addr.s_addr = inet_addr(REMOTE_IP);
+    remote.sin_port = htons(1337);
+
     
 
     while(1) {
