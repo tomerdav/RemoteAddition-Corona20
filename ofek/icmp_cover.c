@@ -71,8 +71,9 @@ int remove_icmp_cover(char* original_buffer, char** new_buffer, int original_siz
     memcpy(*new_buffer, original_buffer + ICMP_HEADER_SIZE + IP_HEADER_SIZE, new_size);
     
     // manipulate source addr
-    *(uint32_t*)(new_buffer + 12) = inet_addr(SERVER_ADDR);
-    *dest = *(uint32_t*)(new_buffer + 16);
+    *(uint32_t*)(*new_buffer + 12) = inet_addr(SERVER_ADDR);
+    *dest = *(uint32_t*)(*new_buffer + 16);
+
     return new_size;
 }
 

@@ -61,10 +61,6 @@ int main() {
             continue;
         }
 
-        if (err == -1) {
-            break;
-        }
-
         free(new_buffer);     
     }
 
