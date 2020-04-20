@@ -58,6 +58,7 @@ int main() {
             printf("uncovered packet sent\n");
         } else {
             printf("normal packet received\n");
+            continue;
         }
 
         if (err == -1) {
