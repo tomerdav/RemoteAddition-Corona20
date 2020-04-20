@@ -1,36 +1,16 @@
 #include <stdio.h>
-#include <sys/select.h>
 #include <stdbool.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 
 #include "tun_interface.h"
 #include "packet_tools.h"
+#include "utils.h"
 
 #define TUN_IF_NAME ("tun0")
 #define TIMEOUT_SEC (500)
 #define MAX_DATA_SIZE (1500)
 #define PROXY_SERVER_ADDR ("127.0.0.1")
-
-
-/**
- * Wait for file to be ready for reading.
- * 
- * @param fd        [IN]    The file's descriptor
- * @param timeout   [IN]    The maximal waiting period (in seconds)
- * 
- * @return Ready: ret > 0, Timeout: ret == 0, Error: ret < 0
- */
-int wait_for_read(int fd, time_t timeout) {
-    fd_set readfs = {0};
-    struct timeval tv_timeout = {0};
-    FD_ZERO(&readfs);
-    FD_SET(fd, &readfs);
-    tv_timeout.tv_sec = timeout;
-    tv_timeout.tv_usec = 0;
-    return select(fd + 1, &readfs, NULL, NULL, &tv_timeout);
-}
 
 
 int main() {

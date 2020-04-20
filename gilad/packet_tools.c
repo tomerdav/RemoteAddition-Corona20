@@ -50,6 +50,18 @@ size_t wrapped_packet_size(size_t data_size) {
 
 
 /**
+ * Calculates the size of a given packet after it will be unwarpped.
+ * 
+ * @param data_size     [IN]    The original packet size
+ * 
+ * @return The unwrapped packet size.
+ */
+size_t unwrapped_packet_size(size_t data_size) {
+    return data_size - (sizeof(struct iphdr) + sizeof(struct icmphdr));
+}
+
+
+/**
  * Adds a given amount to a pointer.
  * 
  * @param pointer   [IN]    The pointer
@@ -63,7 +75,7 @@ void* pointer_add(void* pointer, size_t amount) {
 
 
 /**
- * Wraps a given packet with an ICMP packet.
+ * Wraps a given IP packet with an ICMP packet.
  * 
  * @param data          [IN]    A buffer with the packet's data.
  * @param data_size     [IN]    The size of the buffer.
@@ -128,5 +140,26 @@ int wrap_and_send(int sock_fd, const void* packet, size_t size, char* dest_addr)
 
 cleanup:
     free(packet_to_send);
+    return err;
+}
+
+
+int unwrap_and_send(int sock_fd, void* packet, size_t size) {
+    struct sockaddr_in addr = {0};
+    int err = 0;
+    ssize_t sent = -1;
+    size_t packet_size = unwrapped_packet_size(size);
+
+    // Unwarps the packet
+    void* packet_to_send = pointer_add(packet, sizeof(struct iphdr) + sizeof(struct icmphdr));
+    struct iphdr* header = (struct iphdr*) packet_to_send;
+    
+    // Sends the packet
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = header->daddr;
+    sent = sendto(sock_fd, packet_to_send, packet_size, 0, (struct sockaddr*) &addr, sizeof(addr));
+    if (sent < 0 || sent < packet_size) EXIT_FUNC(-1);
+
+cleanup:
     return err;
 }
