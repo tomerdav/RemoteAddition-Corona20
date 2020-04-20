@@ -23,8 +23,6 @@ int main() {
         return -1;
     }
 
-    printf("%s", "Sniff started\n");
-
     while (true) {
         FD_ZERO(&read_fds);
         FD_SET(fd, &read_fds);

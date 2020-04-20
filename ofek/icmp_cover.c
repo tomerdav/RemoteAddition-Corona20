@@ -5,6 +5,8 @@
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
+#include <errno.h>
 #include "defs.h"
 
 #define ICMP_HEADER_SIZE 8
@@ -102,7 +104,7 @@ int get_covered_icmp_size(int size) {
 }
 
 int send_icmp_uncovered_packet(char* buffer, int size, uint32_t dest) {
-    int fd = socket(AF_INET, SOCK_RAW, IPPROTO_IP);
+    int fd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
     if (fd == -1) {
         return -1;
     }
@@ -115,7 +117,7 @@ int send_icmp_uncovered_packet(char* buffer, int size, uint32_t dest) {
     iov[0].iov_base = buffer;
     iov[0].iov_len = size;
     
-    struct msghdr message;
+    struct msghdr message = {0};
     message.msg_name = &server;
     message.msg_namelen = sizeof(server);
     message.msg_iov = iov;
@@ -124,9 +126,9 @@ int send_icmp_uncovered_packet(char* buffer, int size, uint32_t dest) {
     message.msg_controllen = 0;
 
     if (sendmsg(fd, &message, 0) == -1) {
-        return -1;
+      return -1;
     }
-    
+
     return size;
 }
 
