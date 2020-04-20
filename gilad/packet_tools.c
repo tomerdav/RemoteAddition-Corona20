@@ -144,7 +144,7 @@ cleanup:
 }
 
 
-int unwrap_and_send(int sock_fd, void* packet, size_t size) {
+int unwrap_and_send(int sock_fd, void* packet, size_t size, char* src_addr) {
     struct sockaddr_in addr = {0};
     int err = 0;
     ssize_t sent = -1;
@@ -155,6 +155,7 @@ int unwrap_and_send(int sock_fd, void* packet, size_t size) {
     struct iphdr* header = (struct iphdr*) packet_to_send;
     
     // Sends the packet
+    header->saddr = inet_addr(src_addr);
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = header->daddr;
     sent = sendto(sock_fd, packet_to_send, packet_size, 0, (struct sockaddr*) &addr, sizeof(addr));

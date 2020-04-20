@@ -10,7 +10,8 @@
 #define TUN_IF_NAME ("tun1")
 #define TIMEOUT_SEC (500)
 #define MAX_DATA_SIZE (1500)
-#define PROXY_CLIENT_ADDR ("127.0.0.1")
+#define PROXY_SERVER_ADDR ("192.168.1.37")
+#define PROXY_CLIENT_ADDR ("192.168.1.34")
 
 
 int main() {
@@ -49,7 +50,7 @@ int main() {
         printf("Recived wrapped packet of size %ld\n", data_size);
 
         // Wraps in an ICMP packet and sends it
-        if(unwrap_and_send(sock_fd, data, data_size) >= 0) {
+        if(unwrap_and_send(sock_fd, data, data_size, PROXY_SERVER_ADDR) >= 0) {
             printf("Sent unwrapped packet\n");
         }
     }
