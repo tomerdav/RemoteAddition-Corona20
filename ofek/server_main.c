@@ -9,6 +9,7 @@
 #include "icmp_cover.h"
 #include "defs.h"
 
+
 int main() {
     fd_set read_fds = {0};
     int err = EXIT_SUCCESS;
@@ -17,13 +18,12 @@ int main() {
     char* new_buffer = NULL;
     int new_size = 0;
 
-    int fd = tun_alloc(TUN_NAME);
-
+    int fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (fd == -1) {
-        return EXIT_FAILURE;
+        return -1;
     }
 
-    printf("%s", "Interface tun33 created successfully\n");
+    printf("%s", "Sniff started\n");
 
     while (true) {
         FD_ZERO(&read_fds);
@@ -34,21 +34,34 @@ int main() {
         if (err <= 0) {
             break;
         }
-
-        num_read = tun_read(fd, buffer, BUFF_SIZE);
+        
+        num_read = socket_read(fd, buffer, BUFF_SIZE);
 
         if (num_read == -1) {
             break;
         }
-
-        new_size = build_icmp_cover(buffer, &new_buffer, num_read, false);  
+        
+        uint32_t dest = 0;
+        new_size = remove_icmp_cover(buffer, &new_buffer, num_read, &dest);  
 
         if (new_size == -1) {
             break;
         }
 
-        err = send_icmp_covered_packet(new_buffer, new_size, SERVER_ADDR);
-        printf("packet sent\n");
+        if (new_size < num_read) {
+            err = send_icmp_uncovered_packet(new_buffer, new_size, dest); 
+        }
+
+        if (err == -1) {
+            break;
+        }
+
+        if (new_size < num_read) {
+            printf("uncovered packet sent\n");
+        } else {
+            printf("normal packet received\n");
+        }
+
         if (err == -1) {
             break;
         }
@@ -57,9 +70,8 @@ int main() {
     }
 
  
-    tun_close(fd);
-    printf("%s", "Interface tun33 closed\n");
+    close(fd);
+    printf("%s", "Sniff stopped\n");
 
     return EXIT_SUCCESS;
 }
-

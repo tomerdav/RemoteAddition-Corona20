@@ -5,11 +5,10 @@
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <string.h>
+#include "defs.h"
 
 #define ICMP_HEADER_SIZE 8
 #define IP_HEADER_SIZE 20
-#define SERVER_ADDR "192.168.1.20"
-#define CLIENT_ADDR "192.168.1.18"
 
 uint16_t get_icmp_checksum(char* buffer, int size)
 {
