@@ -1,19 +1,3 @@
-// #include <stdio.h>
-// #include <stdlib.h>
-// #include <unistd.h>
-// #include <sys/types.h>
-// #include <sys/socket.h>
-// #include <netdb.h>
-// #include <netinet/in.h>
-
-// #include <netinet/in_systm.h>
-// #include <netinet/ip.h>
-// #include <netinet/ip_icmp.h>
-// #include <string.h>
-// #include <arpa/inet.h>
-// #include <sys/select.h>
-// #include <sys/time.h>
-
 #include "icmp_tun.c"
 #include "icmp_packet.c"
 
@@ -41,7 +25,7 @@ int main() {
 
     sock_fd = create_socket();
 
-    create_icmp_packet(icmp, ip, send_buf);
+    create_icmp_packet(icmp, ip, send_buf, ICMP_ECHO);
 
     while(1) {
 

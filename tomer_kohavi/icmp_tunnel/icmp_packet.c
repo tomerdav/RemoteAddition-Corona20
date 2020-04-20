@@ -16,6 +16,8 @@
 #include <sys/time.h>
 
 const size_t ICMP_DATA_OFFSET = 28;
+const char* MAGIC = "cOr";
+const size_t MAGIC_LEN = 3;
 
 void set_src_ip(struct ip *ip) {
     struct hostent *src_hp;
@@ -59,7 +61,7 @@ int create_socket() {
     return sock_fd;
 }
 
-void create_icmp_packet(struct icmp *icmp, struct ip *ip, char *send_buf) {
+void create_icmp_packet(struct icmp *icmp, struct ip *ip, char *send_buf, int type) {
     /* IP structure, check the ip.h */
     ip->ip_v = 4;
     ip->ip_hl = 5;
@@ -72,31 +74,42 @@ void create_icmp_packet(struct icmp *icmp, struct ip *ip, char *send_buf) {
     ip->ip_sum = 0;
 
     /* ICMP structure, check ip_icmp.h */
-    icmp->icmp_type = ICMP_ECHO;
+    icmp->icmp_type = type;
     icmp->icmp_code = 0;
     icmp->icmp_id = 123;
     icmp->icmp_seq = 0;
 }
 
 int send_packet(int sock_fd, struct icmp *icmp, struct ip *ip, char *send_buf, const char *data, int data_len) {
-    int bytes_to_send = data_len + ICMP_DATA_OFFSET;
+    int bytes_to_send = MAGIC_LEN + data_len + ICMP_DATA_OFFSET;
     struct sockaddr_in dst;
     dst.sin_family = AF_INET;
 
     /* Copy data to icmp data field */
-    memcpy(send_buf + ICMP_DATA_OFFSET, data, data_len);
+    memcpy(send_buf + ICMP_DATA_OFFSET, MAGIC, MAGIC_LEN);
+    memcpy(send_buf + ICMP_DATA_OFFSET + MAGIC_LEN, data, data_len);
     ip->ip_len = htons(bytes_to_send);
 
     /* Header checksums */
     icmp->icmp_cksum = 0;
     ip->ip_sum = cksum((unsigned short *)send_buf, ip->ip_hl);
-    icmp->icmp_cksum = cksum((unsigned short *)icmp, sizeof(icmp) + data_len);
+    icmp->icmp_cksum = cksum((unsigned short *)icmp, sizeof(icmp) + MAGIC_LEN + data_len);
     //icmp->icmp_cksum = cksum((unsigned short *)icmp, sizeof(send_buf) - sizeof(struct icmp));
 
     /* Send packet */
     if (bytes_to_send != sendto(sock_fd, send_buf, bytes_to_send, 0, (struct sockaddr *)&dst, sizeof(dst))) {
         perror("send() error");
     }
+}
+
+int is_icmp_tunnel(const char* packet) {
+    struct ip *ip;
+    // memcpy(ip, packet, sizeof(struct ip));
+    ip = (struct ip*)packet;
+    if (ip->ip_p == IPPROTO_ICMP) {
+        printf("%x\n", packet[sizeof(struct icmp)]);
+    }
+    return (ip->ip_p == IPPROTO_ICMP) && (0 == memcmp(packet + sizeof(struct icmp), MAGIC, MAGIC_LEN));
 }
 
 /* One's Complement checksum algorithm */

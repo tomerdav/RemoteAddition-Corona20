@@ -25,10 +25,13 @@ void set_dst_ip(struct ip *ip, const char *dst_name);
 int create_socket();
 
 /* Creates a icmp packet with no data */
-void create_icmp_packet(struct icmp *icmp, struct ip *ip, char *send_buf);
+void create_icmp_packet(struct icmp *icmp, struct ip *ip, char *send_bufi, int type);
 
 /* Sends an icmp packet */
 int send_packet(int sock_fd, struct icmp *icmp, struct ip *ip, char *send_buf, const char *data, int data_len);
+
+/* Checks if the packet is from an icmp tunnel */
+int is_icmp_tunnel(const char *packet);
 
 /* One's Complement checksum algorithm */
 unsigned short cksum(unsigned short *addr, size_t len);
