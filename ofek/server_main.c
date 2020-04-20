@@ -46,6 +46,7 @@ int main() {
             break;
         }
 
+
         if (new_size < num_read) {
             err = send_icmp_uncovered_packet(new_buffer, new_size, dest); 
         }

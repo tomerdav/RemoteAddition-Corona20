@@ -41,7 +41,7 @@ int main() {
             break;
         }
 
-        new_size = build_icmp_cover(buffer + 4, &new_buffer, num_read, false);  
+        new_size = build_icmp_cover(buffer + 4, &new_buffer, num_read - 4, false);
 
         if (new_size == -1) {
             break;
