@@ -17,5 +17,6 @@ typedef struct {
 int get_covered_icmp_size(int size);
 int build_icmp_cover(char* original_buffer, char** new_buffer, int original_size, bool is_reply);
 int send_icmp_covered_packet(char* buffer, int size, char* dest);
+int remove_icmp_cover(char* original_buffer, char** new_buffer, int original_size, uint32_t* dest);
 
 #endif
