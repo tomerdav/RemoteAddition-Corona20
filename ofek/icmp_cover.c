@@ -7,10 +7,12 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include <linux/ip.h>
 #include "defs.h"
 
-#define ICMP_HEADER_SIZE 8
-#define IP_HEADER_SIZE 20
+#define ICMP_HEADER_SIZE (8)
+#define IP_HEADER_SIZE (20)
+#define ICMP_PROTOCOL_NUMBER ((uint8_t)1)
 
 uint16_t get_icmp_checksum(char* buffer, int size)
 {
@@ -40,23 +42,12 @@ int socket_read(int fd, char* buffer, int size) {
     return recvfrom(fd, buffer, size, 0, NULL, 0);
 }
 
-bool is_from_client(char* original_buffer, int size) {
-    return *(uint32_t*)(original_buffer + 12) == inet_addr(CLIENT_ADDR);
-}
-
 bool is_icmp_packet(char* buffer, int size) {
-    // check if icmp    
-    if ((*(uint8_t*)(buffer + 9)) != 1) {
-        return false;
-    }
-    return true;
+    struct iphdr* ip_header = (struct iphdr*)(buffer);
+    return (ip_header->protocol == ICMP_PROTOCOL_NUMBER);
 }
 
 int remove_icmp_cover(char* original_buffer, char** new_buffer, int original_size, uint32_t* dest) {   
-    if (!is_from_client(original_buffer, original_size)) {
-        return original_size;
-    }
-    
     if (!is_icmp_packet(original_buffer, original_size)) {
         return original_size;
     }
@@ -70,9 +61,11 @@ int remove_icmp_cover(char* original_buffer, char** new_buffer, int original_siz
 
     memcpy(*new_buffer, original_buffer + ICMP_HEADER_SIZE + IP_HEADER_SIZE, new_size);
     
+    struct iphdr* ip_header = (struct iphdr*)(*new_buffer);
     // manipulate source addr
-    *(uint32_t*)(*new_buffer + 12) = inet_addr(SERVER_ADDR);
-    *dest = *(uint32_t*)(*new_buffer + 16);
+    ip_header->saddr = inet_addr(SERVER_ADDR);
+ 
+    *dest = ip_header->daddr;
 
     return new_size;
 }
@@ -127,9 +120,11 @@ int send_icmp_uncovered_packet(char* buffer, int size, uint32_t dest) {
     message.msg_controllen = 0;
 
     if (sendmsg(fd, &message, 0) == -1) {
-      return -1;
+        close(fd);
+        return -1;
     }
 
+    close(fd);
     return size;
 }
 
@@ -154,11 +149,13 @@ int send_icmp_covered_packet(char* buffer, int size, char* dest) {
     message.msg_iovlen = 1;
     message.msg_control = 0;
     message.msg_controllen = 0;
-
+    
     if (sendmsg(fd, &message, 0) == -1) {
+        close(fd);
         return -1;
     }
     
+    close(fd);
     return size;
 }
 

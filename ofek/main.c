@@ -13,8 +13,9 @@ int main() {
     fd_set read_fds = {0};
     int err = EXIT_SUCCESS;
     int num_read = 0;
-    char buffer[BUFF_SIZE];
+    char recv_buffer[BUFF_SIZE + 4];
     char* new_buffer = NULL;
+    char* buffer = NULL;
     int new_size = 0;
 
     int fd = tun_alloc(TUN_NAME);
@@ -35,13 +36,14 @@ int main() {
             break;
         }
 
-        num_read = tun_read(fd, buffer, BUFF_SIZE);
+        num_read = tun_read(fd, recv_buffer, BUFF_SIZE + 4) - 4;
+        buffer = recv_buffer + 4;
 
         if (num_read == -1) {
             break;
         }
 
-        new_size = build_icmp_cover(buffer + 4, &new_buffer, num_read - 4, false);
+        new_size = build_icmp_cover(buffer, &new_buffer, num_read, false);
 
         if (new_size == -1) {
             break;

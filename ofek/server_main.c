@@ -14,14 +14,17 @@ int main() {
     fd_set read_fds = {0};
     int err = EXIT_SUCCESS;
     int num_read = 0;
-    char buffer[BUFF_SIZE];
+    char recv_buffer[BUFF_SIZE + 4];
     char* new_buffer = NULL;
+    char* buffer = NULL;
     int new_size = 0;
 
-    int fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+    int fd = tun_alloc(TUN_NAME);
     if (fd == -1) {
         return -1;
     }
+
+    printf("%s", "Interface tun33 created successfully\n");
 
     while (true) {
         FD_ZERO(&read_fds);
@@ -33,12 +36,13 @@ int main() {
             break;
         }
         
-        num_read = socket_read(fd, buffer, BUFF_SIZE);
-
+        num_read = tun_read(fd, recv_buffer, BUFF_SIZE + 4) - 4;
+        buffer = recv_buffer + 4;
+    
         if (num_read == -1) {
             break;
         }
-        
+
         uint32_t dest = 0;
         new_size = remove_icmp_cover(buffer, &new_buffer, num_read, &dest);  
 
@@ -66,8 +70,8 @@ int main() {
     }
 
  
-    close(fd);
-    printf("%s", "Sniff stopped\n");
+    tun_close(fd);
+    printf("%s", "Interface tun33 closed\n");
 
     return EXIT_SUCCESS;
 }

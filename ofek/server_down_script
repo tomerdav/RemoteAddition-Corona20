@@ -1,0 +1,1 @@
+iptables -t nat -D PREROUTING -p icmp -j DNAT --to-destination 1.2.3.4
