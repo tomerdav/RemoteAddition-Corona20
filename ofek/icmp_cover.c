@@ -1,5 +1,3 @@
-#include "icmp_cover.h"
-
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -8,6 +6,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <linux/ip.h>
+#include "icmp_cover.h"
 #include "defs.h"
 
 #define ICMP_HEADER_SIZE (8)
@@ -56,7 +55,7 @@ int remove_icmp_cover(char* original_buffer, char** new_buffer, int original_siz
     *new_buffer = malloc(new_size);
 
     if(!(*new_buffer)) {
-        return -1;    
+        return ERROR_CODE;    
     }
 
     memcpy(*new_buffer, original_buffer + ICMP_HEADER_SIZE + IP_HEADER_SIZE, new_size);
@@ -75,7 +74,7 @@ int build_icmp_cover(char* original_buffer, char** new_buffer, int original_size
     *new_buffer = malloc(new_size);
 
     if (!(*new_buffer)) {
-        return -1;
+        return ERROR_CODE;
     }
 
     // build the header of the covered packet
@@ -97,15 +96,10 @@ int get_covered_icmp_size(int size) {
     return (ICMP_HEADER_SIZE + size);
 }
 
-int send_icmp_uncovered_packet(char* buffer, int size, uint32_t dest) {
-    int fd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
-    if (fd == -1) {
-        return -1;
-    }
-
+int send_socket_msg(int fd, char* buffer, int size, uint32_t dest) {
     struct sockaddr_in server = {0};
     server.sin_family = AF_INET;
-    server.sin_addr.s_addr = dest;
+    server.sin_addr.s_addr = dest;    
 
     struct iovec iov[1] = {0};
     iov[0].iov_base = buffer;
@@ -119,43 +113,30 @@ int send_icmp_uncovered_packet(char* buffer, int size, uint32_t dest) {
     message.msg_control = 0;
     message.msg_controllen = 0;
 
-    if (sendmsg(fd, &message, 0) == -1) {
+    if (sendmsg(fd, &message, 0) == ERROR_CODE) {
         close(fd);
-        return -1;
+        return ERROR_CODE;
     }
 
     close(fd);
     return size;
 }
 
+int send_icmp_uncovered_packet(char* buffer, int size, uint32_t dest) {
+    int fd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+    if (fd == ERROR_CODE) {
+        return ERROR_CODE;
+    }
+
+    return send_socket_msg(fd, buffer, size, dest);
+}
+
 int send_icmp_covered_packet(char* buffer, int size, char* dest) {
     int fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-    if (fd == -1) {
-        return -1;
+    if (fd == ERROR_CODE) {
+        return ERROR_CODE;
     }
 
-    struct sockaddr_in server = {0};
-    server.sin_family = AF_INET;
-    server.sin_addr.s_addr = inet_addr(dest);
-
-    struct iovec iov[1] = {0};
-    iov[0].iov_base = buffer;
-    iov[0].iov_len = size;
-    
-    struct msghdr message;
-    message.msg_name = &server;
-    message.msg_namelen = sizeof(server);
-    message.msg_iov = iov;
-    message.msg_iovlen = 1;
-    message.msg_control = 0;
-    message.msg_controllen = 0;
-    
-    if (sendmsg(fd, &message, 0) == -1) {
-        close(fd);
-        return -1;
-    }
-    
-    close(fd);
-    return size;
+    return send_socket_msg(fd, buffer, size, inet_addr(dest));
 }
 
